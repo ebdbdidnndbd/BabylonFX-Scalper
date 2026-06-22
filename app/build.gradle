@@ -21,7 +21,6 @@ android {
         python {
             version "3.8"
             pip {
-                // تثبيت المكتبات المطلوبة للبوت ذاتياً داخل الموبايل
                 install "yfinance"
                 install "pandas"
                 install "numpy"
@@ -31,7 +30,7 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled true
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -46,4 +45,3 @@ dependencies {
     implementation 'com.google.android.material:material:1.9.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }
-
