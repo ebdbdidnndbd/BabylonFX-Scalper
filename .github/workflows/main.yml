@@ -20,16 +20,15 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
 
     - name: Set up Python 3.8
       uses: actions/setup-python@v5
       with:
         python-version: '3.8'
 
-    # حل المشكلة: توليد ملفات الـ Gradle Wrapper أوتوماتيكياً في السيرفر لمنع خطأ الفقدان
-    - name: Setup Gradle
-      run: gradle wrapper
+    # الضربة القاضية: إجبار السيرفر على نسخة 8.4 المستقرة
+    - name: Setup Gradle 8.4
+      run: gradle wrapper --gradle-version 8.4
 
     - name: Grant Execute Permission for Gradle
       run: chmod +x gradlew
