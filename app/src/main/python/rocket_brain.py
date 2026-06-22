@@ -3,10 +3,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-# تذكر آخر شمعة لمنع التكرار
 last_processed_timestamp = None
 
-# دالة حساب مؤشر STC
 def calculate_stc(df, len_fast=23, len_slow=50, cycle=10):
     fast_ema = df['Close'].ewm(span=len_fast, adjust=False).mean()
     slow_ema = df['Close'].ewm(span=len_slow, adjust=False).mean()
@@ -17,7 +15,6 @@ def calculate_stc(df, len_fast=23, len_slow=50, cycle=10):
     stc = stoch_macd.ewm(span=cycle/2, adjust=False).mean()
     return stc
 
-# دالة حساب مؤشر UT Bot Alerts
 def calculate_ut_bot(df, sensitivity=2, target_len=11):
     tr1 = pd.DataFrame(df['High'] - df['Low'])
     tr2 = pd.DataFrame(abs(df['High'] - df['Close'].shift(1)))
@@ -36,11 +33,11 @@ def calculate_ut_bot(df, sensitivity=2, target_len=11):
     ut_signal = np.where(df['Close'] > trailing_stop, 1, -1)
     return ut_signal
 
-# الدالة اللي يستدعيها الأندرويد كل 10 ثواني
 def analyze_market():
     global last_processed_timestamp
     try:
-        df = yf.download("BTC-USD", period="1d", interval="1m", auto_adjust=True, progress=False)
+        # الضربة القاضية للكراش: threads=False
+        df = yf.download("BTC-USD", period="1d", interval="1m", auto_adjust=True, progress=False, threads=False)
         
         if df.empty:
             return "WAIT|جاري انتظار تحميل الشارت..."
@@ -67,19 +64,17 @@ def analyze_market():
             tp_target = 40.0
             sl_target = 10.0
             
-            # فحص إشارة الشراء
             if (c_close > c_trend) and (c_ut == 1) and (c_stc >= 65) and (c_close > c_open):
                 msg = f"🟢 إشارة شراء (BUY)\nالرمز: BTCUSDT\nالدخول: {c_close:.2f} $\nالهدف: {c_close + tp_target:.2f} $\nالاستوب: {c_close - sl_target:.2f} $\nالوقت: {datetime.now().strftime('%H:%M:%S')}"
                 last_processed_timestamp = current_timestamp
                 return f"BUY|{msg}"
             
-            # فحص إشارة البيع
             elif (c_close < c_trend) and (c_ut == -1) and (c_stc <= 35) and (c_close < c_open):
                 msg = f"🔴 إشارة بيع (SELL)\nالرمز: BTCUSDT\nالدخول: {c_close:.2f} $\nالهدف: {c_close - tp_target:.2f} $\nالاستوب: {c_close + sl_target:.2f} $\nالوقت: {datetime.now().strftime('%H:%M:%S')}"
                 last_processed_timestamp = current_timestamp
                 return f"SELL|{msg}"
                 
-        return "WAIT|جاري مراقبة السوق..."
+        return "WAIT|جاري مراقبة السوق بدقة..."
         
     except Exception as e:
-        return f"ERROR|خطأ عابر: {str(e)}"
+        return f"ERROR|خطأ أثناء الفحص: {str(e)}"
