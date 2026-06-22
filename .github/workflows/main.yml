@@ -2,10 +2,10 @@ name: Build BabylonFX APK
 
 on:
   push:
-    branches: [ "main" ] # يشتغل البناء تلقائياً أول ما ترفع أو تعدل أي كود بفرع main
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch: # يخليك تشغل البناء يدوياً بضغطة زر إذا عجبك
+  workflow_dispatch:
 
 jobs:
   build:
@@ -26,6 +26,10 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.8'
+
+    # حل المشكلة: توليد ملفات الـ Gradle Wrapper أوتوماتيكياً في السيرفر لمنع خطأ الفقدان
+    - name: Setup Gradle
+      run: gradle wrapper
 
     - name: Grant Execute Permission for Gradle
       run: chmod +x gradlew
