@@ -25,41 +25,43 @@ public class MainActivity extends AppCompatActivity {
     private Python py;
     private PyObject pyModule;
 
-    // المؤقت الآمن الذي يعمل كل 10 ثواني (بديل الـ while True)
     private Runnable botRunnable = new Runnable() {
         @Override
         public void run() {
             if (!isRunning) return;
             
-            // فتح خط جانبي حتى لا تتجمد الشاشة
             new Thread(() -> {
                 try {
+                    // الاتصال بالبايثون مع صائد الأخطاء
                     PyObject result = pyModule.callAttr("analyze_market");
                     String res = result.toString();
                     String[] parts = res.split("\\|", 2);
                     String type = parts[0];
                     String message = parts.length > 1 ? parts[1] : "";
 
-                    // الرجوع للشاشة لتحديث البيانات
                     runOnUiThread(() -> {
                         if (type.equals("BUY") || type.equals("SELL")) {
                             txtTerminal.append("\n\n====================\n" + message);
                             scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
                             
-                            // إشعار التطبيق (Toast) ينبهك للصفقة
                             String alertText = type.equals("BUY") ? "📈 صفقة شراء جديدة (BTC)!" : "📉 صفقة بيع جديدة (BTC)!";
                             Toast.makeText(MainActivity.this, alertText, Toast.LENGTH_LONG).show();
                             
                         } else if (type.equals("ERROR")) {
+                            // إذا صار خطأ بالبايثون ينطبع هنا بدل الكراش
                             txtTerminal.append("\n⚠️ " + message);
                             scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
                         }
                     });
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    // درع حماية الأندرويد الداخلي
+                    runOnUiThread(() -> {
+                        txtTerminal.append("\n❌ تم منع كراش: " + e.getMessage());
+                        scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
+                    });
                 }
                 
-                // إعادة فحص السوق بعد 10 ثواني
+                // نبضة كل 10 ثواني (لا تغيرها حتى ما يختنق السيرفر)
                 if (isRunning) {
                     handler.postDelayed(botRunnable, 10000);
                 }
@@ -77,27 +79,29 @@ public class MainActivity extends AppCompatActivity {
         txtTerminal = findViewById(R.id.txtTerminal);
         scrollView = findViewById(R.id.scrollView);
 
-        // تشغيل محرك البايثون
-        if (!Python.isStarted()) {
-            Python.start(new AndroidPlatform(this));
+        try {
+            if (!Python.isStarted()) {
+                Python.start(new AndroidPlatform(this));
+            }
+            py = Python.getInstance();
+            pyModule = py.getModule("rocket_brain");
+            txtTerminal.setText("✅ النظام جاهز ومستقر. اضغط تشغيل.");
+        } catch (Exception e) {
+            txtTerminal.setText("❌ مشكلة في قراءة البايثون: " + e.getMessage());
         }
-        py = Python.getInstance();
-        pyModule = py.getModule("rocket_brain");
 
         btnStart.setOnClickListener(v -> {
-            if (isRunning) {
-                Toast.makeText(this, "البوت يعمل بالفعل!", Toast.LENGTH_SHORT).show();
-                return;
-            }
+            if (isRunning) return;
             isRunning = true;
-            txtTerminal.append("\n\n>>> 🟢 تم تشغيل القناص! جاري رصد الشارت بالثانية بداخل التطبيق...");
-            handler.post(botRunnable); // تشغيل النبضات
+            txtTerminal.append("\n\n>>> 🟢 تم تشغيل القناص! رادار بابل يعمل الآن...");
+            scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
+            handler.post(botRunnable);
         });
 
         btnStop.setOnClickListener(v -> {
             if (!isRunning) return;
             isRunning = false;
-            handler.removeCallbacks(botRunnable); // إيقاف النبضات
+            handler.removeCallbacks(botRunnable);
             txtTerminal.append("\n\n>>> 🔴 تم إيقاف البوت بنجاح.");
             scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
         });
