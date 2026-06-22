@@ -2,10 +2,11 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        // حل المشكلة: إضافة مستودع أداة بايثون الرسمي للأندرويد
+        maven { url "https://chaquo.com/maven" }
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.2.0'
-        // حقن أداة Chaquopy لتشغيل البايثون داخل الأندرويد
         classpath 'com.chaquo.python:gradle:15.0.0'
     }
 }
@@ -14,10 +15,11 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // إضافته هنا أيضاً لضمان قراءة الموديولات
+        maven { url "https://chaquo.com/maven" }
     }
 }
 
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
-
