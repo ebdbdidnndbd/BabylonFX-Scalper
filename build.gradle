@@ -1,23 +1,9 @@
 buildscript {
-    repositories {
-        google()
-        mavenCentral()
-        // مستودع تشاكو ممتد
-        maven { url "https://chaquo.com/maven" }
-    }
     dependencies {
-        // تحديث التوافقية لتتماشى مع سيرفر جيثب الحديث Gradle 9
-        classpath 'com.android.tools.build:gradle:8.3.0'
-        // تحديث إصدار Chaquopy إلى النسخة المتوافقة والموجودة بالمستودع
-        classpath 'com.chaquo.python:gradle:15.1.0'
-    }
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url "https://chaquo.com/maven" }
+        // إصدار أندرويد المستقر والمتوافق
+        classpath 'com.android.tools.build:gradle:8.2.0'
+        // إصدار تشاكو المستقر والمعتمد عالمياً لقراءة البايثون
+        classpath 'com.chaquo.python:gradle:14.0.2'
     }
 }
 
