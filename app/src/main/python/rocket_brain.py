@@ -1,32 +1,12 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import requests
-import time
 from datetime import datetime
 
-# --- جسر الأندرويد لعرض الصفقات على الشاشة ---
-android_ui = None
-def connect_ui(ui_bridge):
-    global android_ui
-    android_ui = ui_bridge
+# تذكر آخر شمعة لمنع التكرار
+last_processed_timestamp = None
 
-# --- إعدادات التليجرام ---
-BOT_TOKEN = "8704425941:AAHIsmktU4A4VsY1iHz1MwP9tWbS_oDk1oo"  
-CHAT_ID = "7259620384"            
-
-def send_telegram_alert(message):
-    # إرسال للتليجرام
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
-    try: requests.post(url, json=payload, timeout=5)
-    except: pass
-    
-    # إرسال نفس الصفقة لشاشة التطبيق مباشرة (الجسر)
-    if android_ui is not None:
-        android_ui.onNewSignal(message)
-
-# دالة حساب مؤشر STC (نفس كودك)
+# دالة حساب مؤشر STC
 def calculate_stc(df, len_fast=23, len_slow=50, cycle=10):
     fast_ema = df['Close'].ewm(span=len_fast, adjust=False).mean()
     slow_ema = df['Close'].ewm(span=len_slow, adjust=False).mean()
@@ -37,7 +17,7 @@ def calculate_stc(df, len_fast=23, len_slow=50, cycle=10):
     stc = stoch_macd.ewm(span=cycle/2, adjust=False).mean()
     return stc
 
-# دالة حساب مؤشر UT Bot Alerts (نفس كودك)
+# دالة حساب مؤشر UT Bot Alerts
 def calculate_ut_bot(df, sensitivity=2, target_len=11):
     tr1 = pd.DataFrame(df['High'] - df['Low'])
     tr2 = pd.DataFrame(abs(df['High'] - df['Close'].shift(1)))
@@ -56,52 +36,50 @@ def calculate_ut_bot(df, sensitivity=2, target_len=11):
     ut_signal = np.where(df['Close'] > trailing_stop, 1, -1)
     return ut_signal
 
-# --- الدالة الرئيسية (وضعنا كودك هنا حتى الأندرويد يشغله بدون كراش) ---
-def start_bot():
-    send_telegram_alert("🟢 *تم تشغيل بوت القناص الحي بنجاح!* جاري رصد الشارت بالثانية..")
-    last_processed_timestamp = None
-
-    while True:
-        try:
-            df = yf.download("BTC-USD", period="1d", interval="1m", auto_adjust=True, progress=False)
+# الدالة اللي يستدعيها الأندرويد كل 10 ثواني
+def analyze_market():
+    global last_processed_timestamp
+    try:
+        df = yf.download("BTC-USD", period="1d", interval="1m", auto_adjust=True, progress=False)
+        
+        if df.empty:
+            return "WAIT|جاري انتظار تحميل الشارت..."
             
-            if not df.empty:
-                if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = df.columns.get_level_values(0)
-                    
-                df = df.dropna()
-                
-                df['Trend_Line'] = df['Close'].rolling(window=7).mean()
-                df['STC'] = calculate_stc(df)
-                df['UT_Signal'] = calculate_ut_bot(df, sensitivity=2, target_len=11)
-                df = df.dropna()
-                
-                latest_candle = df.iloc[-2]
-                current_timestamp = str(df.index[-2])
-                
-                if current_timestamp != last_processed_timestamp:
-                    c_close = float(latest_candle['Close'])
-                    c_open = float(latest_candle['Open'])
-                    c_trend = float(latest_candle['Trend_Line'])
-                    c_stc = float(latest_candle['STC'])
-                    c_ut = float(latest_candle['UT_Signal'])
-                    
-                    tp_target = 40.0
-                    sl_target = 10.0
-                    
-                    if (c_close > c_trend) and (c_ut == 1) and (c_stc >= 65) and (c_close > c_open):
-                        msg = f"🚨 *إشارة شراء حية (BUY) 📈*\n• الرمز: BTCUSDT\n• الدخول: {c_close:.2f} $\n• الهدف: {c_close + tp_target:.2f} $\n• الاستوب: {c_close - sl_target:.2f} $\n⏰ {datetime.now().strftime('%H:%M:%S')}"
-                        send_telegram_alert(msg)
-                        last_processed_timestamp = current_timestamp
-                    
-                    elif (c_close < c_trend) and (c_ut == -1) and (c_stc <= 35) and (c_close < c_open):
-                        msg = f"🚨 *إشارة بيع حية (SELL) 📉*\n• الرمز: BTCUSDT\n• الدخول: {c_close:.2f} $\n• الهدف: {c_close - tp_target:.2f} $\n• الاستوب: {c_close + sl_target:.2f} $\n⏰ {datetime.now().strftime('%H:%M:%S')}"
-                        send_telegram_alert(msg)
-                        last_processed_timestamp = current_timestamp
-
-            time.sleep(10)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
             
-        except Exception as error:
-            if android_ui is not None:
-                android_ui.onNewSignal(f"⚠️ خطأ عابر: {error}")
-            time.sleep(5)
+        df = df.dropna()
+        df['Trend_Line'] = df['Close'].rolling(window=7).mean()
+        df['STC'] = calculate_stc(df)
+        df['UT_Signal'] = calculate_ut_bot(df, sensitivity=2, target_len=11)
+        df = df.dropna()
+        
+        latest_candle = df.iloc[-2]
+        current_timestamp = str(df.index[-2])
+        
+        if current_timestamp != last_processed_timestamp:
+            c_close = float(latest_candle['Close'])
+            c_open = float(latest_candle['Open'])
+            c_trend = float(latest_candle['Trend_Line'])
+            c_stc = float(latest_candle['STC'])
+            c_ut = float(latest_candle['UT_Signal'])
+            
+            tp_target = 40.0
+            sl_target = 10.0
+            
+            # فحص إشارة الشراء
+            if (c_close > c_trend) and (c_ut == 1) and (c_stc >= 65) and (c_close > c_open):
+                msg = f"🟢 إشارة شراء (BUY)\nالرمز: BTCUSDT\nالدخول: {c_close:.2f} $\nالهدف: {c_close + tp_target:.2f} $\nالاستوب: {c_close - sl_target:.2f} $\nالوقت: {datetime.now().strftime('%H:%M:%S')}"
+                last_processed_timestamp = current_timestamp
+                return f"BUY|{msg}"
+            
+            # فحص إشارة البيع
+            elif (c_close < c_trend) and (c_ut == -1) and (c_stc <= 35) and (c_close < c_open):
+                msg = f"🔴 إشارة بيع (SELL)\nالرمز: BTCUSDT\nالدخول: {c_close:.2f} $\nالهدف: {c_close - tp_target:.2f} $\nالاستوب: {c_close + sl_target:.2f} $\nالوقت: {datetime.now().strftime('%H:%M:%S')}"
+                last_processed_timestamp = current_timestamp
+                return f"SELL|{msg}"
+                
+        return "WAIT|جاري مراقبة السوق..."
+        
+    except Exception as e:
+        return f"ERROR|خطأ عابر: {str(e)}"
