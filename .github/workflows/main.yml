@@ -1,0 +1,40 @@
+name: Build BabylonFX APK
+
+on:
+  push:
+    branches: [ "main" ] # يشتغل البناء تلقائياً أول ما ترفع أو تعدل أي كود بفرع main
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch: # يخليك تشغل البناء يدوياً بضغطة زر إذا عجبك
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+
+    - name: Grant Execute Permission for Gradle
+      run: chmod +x gradlew
+
+    - name: Build APK with Gradle
+      run: ./gradlew assembleDebug
+
+    - name: Upload Finished APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: BabylonFX-Scalper-APK
+        path: app/build/outputs/apk/debug/app-debug.apk
