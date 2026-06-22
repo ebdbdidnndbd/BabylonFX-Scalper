@@ -15,13 +15,14 @@ android {
         versionName "1.0"
 
         ndk {
-            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            // الضربة السحرية للحجم: حصرنا التطبيق فقط بمعالجات الهواتف الحديثة (64-bit) 
+            // هذا راح يطير أكثر من 75% من حجم الـ APK!
+            abiFilters "arm64-v8a"
         }
 
         python {
             version "3.8"
             pip {
-                // الشد الميكانيكي الصحيح: نسخة خفيفة ومستقرة للأندرويد ما تطلب مكاتب C++
                 install "yfinance==0.1.74"
                 install "pandas"
                 install "numpy"
@@ -45,4 +46,6 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.9.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    // إضافة مكتبة الـ CardView حتى ما يصير كراش بتصميم الواجهة
+    implementation 'androidx.cardview:cardview:1.0.0'
 }
